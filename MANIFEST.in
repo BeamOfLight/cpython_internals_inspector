@@ -1,0 +1,33 @@
+# Исходники C-расширения
+include src/cpython_internals_inspector/_core.c
+include src/cpython_internals_inspector/_dict.c
+include src/cpython_internals_inspector/_utils.c
+include src/cpython_internals_inspector/_utils.h
+
+# Заголовок pythoncapi-compat (нужен для сборки под 3.13)
+include src/cpython_internals_inspector/pythoncapi_compat.h
+
+# Конфигурация сборки
+include pyproject.toml
+include setup.py
+include README.md
+include README.ru.md
+include LICENSE
+include CONTRIBUTING.md
+include CONTRIBUTING.ru.md
+include CODE_OF_CONDUCT.md
+
+# Тесты (полезно включать в sdist, чтобы пользователи могли проверить сборку)
+recursive-include tests *.py
+
+# Исключить артефакты сборки и кеши
+global-exclude *.py[cod]
+global-exclude __pycache__
+global-exclude *.so
+global-exclude *.pyd
+global-exclude .DS_Store
+prune build
+prune dist
+prune .venv
+prune .git
+prune .github

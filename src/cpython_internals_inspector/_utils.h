@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
+#include "pythoncapi_compat.h"
 
 /* Вспомогательные функции записи в PyUnicodeWriter */
 int writer_write_ascii(PyUnicodeWriter *writer, const char *str);
