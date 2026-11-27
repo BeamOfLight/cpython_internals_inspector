@@ -1,0 +1,23 @@
+# .pre-commit-config.yaml
+# Установка: pre-commit install
+# Ручной запуск: pre-commit run --all-files
+# Обновление: pre-commit autoupdate
+
+repos:
+  # Ruff — линтер и форматтер (заменяет flake8, isort, black)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.1
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # mypy — статическая проверка типов
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        args: [--config-file=pyproject.toml]
+        files: ^src/cpython_internals_inspector/
+        additional_dependencies:
+          - types-setuptools  # если нужны типы для setup.py
