@@ -40,7 +40,7 @@ ma_keys -> dk_kind = UNICODE
 ma_keys -> dk_usable = 3
 ma_keys -> dk_nentries = 2
 ma_keys -> dk_indices:
-   0: EMPTY    1: 1        2: EMPTY    3: EMPTY    4: EMPTY    5: EMPTY    6: EMPTY    7: 0     
+   0: EMPTY    1: 1        2: EMPTY    3: EMPTY    4: EMPTY    5: EMPTY    6: EMPTY    7: 0
 
 ma_keys -> entries:
    0: PyDictUnicodeEntry(key_from_ptr=timmy, value_from_ptr=red) 	# hash_from_key='0xf2210736e2219fff'
@@ -66,6 +66,47 @@ uv sync --group dev
 pre-commit install
 pytest
 ```
+
+## Building wheels locally
+
+To build a wheel for a specific Python version locally, use `cibuildwheel`.
+This is the same tool used in CI, so the result matches what gets published.
+
+### Prerequisites
+
+- **Docker** (or Podman) must be running. On Linux, `cibuildwheel`
+  builds inside a `manylinux` container by default.
+- `cibuildwheel` can be run without installing it globally via `uvx`.
+
+### Build for CPython 3.13 (Linux/macOS)
+
+```bash
+CIBW_BUILD="cp313-*" uvx cibuildwheel --output-dir wheelhouse
+```
+
+The resulting wheel appears in `wheelhouse/`, e.g.:
+
+```
+wheelhouse/cpython_internals_inspector-0.1.0-cp313-cp313-manylinux...whl
+```
+
+### Build for another version
+
+Replace the selector to target a different Python version:
+
+```bash
+# CPython 3.14
+CIBW_BUILD="cp314-*" uvx cibuildwheel --output-dir wheelhouse
+```
+
+### Notes
+
+- The `CIBW_BUILD` selector overrides any `build` setting in
+  `pyproject.toml`, so only the requested version is built.
+- Because the project uses internal CPython headers
+  (`Include/internal/pycore_dict.h`), the wheel is tied to the exact
+  CPython version it was built against. A wheel built for `cp313`
+  will not load in `cp314` and vice versa.
 
 ## License
 
