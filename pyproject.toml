@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cpython-internals-inspector"
-version = "0.1.0"
+version = "0.1.1"
 description = "A tool for inspecting the internal layout of CPython objects"
-requires-python = ">=3.14,<3.15"
+requires-python = ">=3.12,<3.15"
 dependencies = []
 
 [dependency-groups]
@@ -23,6 +23,6 @@ where = ["src"]
 testpaths = ["tests"]
 
 [tool.cibuildwheel]
-build = "cp314-*"
+build = "cp312-* cp313-* cp314-*"
 skip = ["*-win32", "*-manylinux_i686", "*-musllinux*"]
 test-command = "python -c \"import cpython_internal_inspector; print(cpython_internal_inspector.inspect({'a':1}))\""
