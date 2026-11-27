@@ -8,7 +8,7 @@ dictionaries, their hash tables, entry arrays, and storage modes
 
 ## ⚠️ Limitations
 
-- Works **only with CPython 3.13 and 3.14**.
+- Works **only with CPython 3.11 - 3.14**.
 - Uses **internal headers** (`Include/internal/pycore_dict.h`), which are
   not a stable API. The build is tied to a specific CPython version and may
   break when moving to another minor version.
@@ -78,16 +78,16 @@ This is the same tool used in CI, so the result matches what gets published.
   builds inside a `manylinux` container by default.
 - `cibuildwheel` can be run without installing it globally via `uvx`.
 
-### Build for CPython 3.13 (Linux/macOS)
+### Build for CPython 3.14 (Linux/macOS)
 
 ```bash
-CIBW_BUILD="cp313-*" uvx cibuildwheel --output-dir wheelhouse
+CIBW_BUILD="cp314-*" uvx cibuildwheel --output-dir wheelhouse
 ```
 
 The resulting wheel appears in `wheelhouse/`, e.g.:
 
 ```
-wheelhouse/cpython_internals_inspector-0.1.0-cp313-cp313-manylinux...whl
+wheelhouse/cpython_internals_inspector-0.1.0-cp314-cp314-manylinux...whl
 ```
 
 ### Build for another version
@@ -95,8 +95,8 @@ wheelhouse/cpython_internals_inspector-0.1.0-cp313-cp313-manylinux...whl
 Replace the selector to target a different Python version:
 
 ```bash
-# CPython 3.14
-CIBW_BUILD="cp314-*" uvx cibuildwheel --output-dir wheelhouse
+# CPython 3.13
+CIBW_BUILD="cp313-*" uvx cibuildwheel --output-dir wheelhouse
 ```
 
 ### Notes
