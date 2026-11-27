@@ -26,6 +26,7 @@ global-exclude __pycache__
 global-exclude *.so
 global-exclude *.pyd
 global-exclude .DS_Store
+global-exclude .pre-commit-config.yaml
 prune build
 prune dist
 prune .venv

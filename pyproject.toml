@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=80", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cpython-internals-inspector"
-version = "0.1.1"
+dynamic = ["version"]
 description = "A tool for inspecting the internal layout of CPython objects"
 requires-python = ">=3.11,<3.15"
 dependencies = []
@@ -16,6 +16,8 @@ dev = [
     "pytest",
     "cibuildwheel",
 ]
+
+[tool.setuptools_scm]
 
 [tool.setuptools.packages.find]
 where = ["src"]
