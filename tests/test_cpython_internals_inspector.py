@@ -330,7 +330,7 @@ def test_inspect_kind_matches_structure(d, expected_kind):
 
     out = cii.inspect(d)
     assert_common_sections(out)
-    assert f"dk_kind = {expected_kind}" in out
+    assert f"dk_kind_str = {expected_kind}" in out
 
 
 def test_inspect_after_deletion_has_dummy():

@@ -280,6 +280,17 @@ build_extra_dict(PyDictKeysObject *keys, Py_ssize_t idx_elem_size)
     }
     Py_DECREF(py_entry_type);
 
+    Py_ssize_t entry_size = (keys->dk_kind == DICT_KEYS_GENERAL)
+        ? (Py_ssize_t)sizeof(PyDictKeyEntry)
+        : (Py_ssize_t)sizeof(PyDictUnicodeEntry);
+    PyObject *py_entry_size = PyLong_FromSsize_t(entry_size);
+    if (py_entry_size == NULL ||
+        PyDict_SetItemString(extra, "entry_size", py_entry_size) < 0) {
+        Py_XDECREF(py_entry_size);
+        goto error;
+    }
+    Py_DECREF(py_entry_size);
+
     PyObject *py_idx_elem_size = PyLong_FromSsize_t(idx_elem_size);
     if (py_idx_elem_size == NULL ||
         PyDict_SetItemString(extra, "idx_elem_size", py_idx_elem_size) < 0) {

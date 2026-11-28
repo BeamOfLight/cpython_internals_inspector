@@ -6,3 +6,5 @@ __pycache__
 *.so
 *.egg-info
 wheelhouse/
+pythoncapi_compat.h
+rebuild.sh
