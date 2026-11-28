@@ -2,12 +2,69 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final, TypedDict
+
+from prettytable import PrettyTable
+
+
+MAX_TABLE_VALUE_LEN: Final = 20
+MIN_COLUMN_HEIGHT: Final = 8
+
+DKIX_EMPTY: Final = -1
+DKIX_DUMMY: Final = -2
+
+KIND_NAMES: Final[dict[int, str]] = {
+    0: "GENERAL",
+    1: "UNICODE",
+    2: "SPLIT",
+}
+
+ENTRY_TYPE_KEY: Final = "PyDictKeyEntry"
+ENTRY_TYPE_UNICODE: Final = "PyDictUnicodeEntry"
+
+
+# ---------------------------------------------------------------------------
+# Типы структуры, возвращаемой get_dict_structure()
+# ---------------------------------------------------------------------------
+
+class Entry(TypedDict, total=False):
+    hash: int
+    key_from_ptr: Any
+    value_from_ptr: Any
+
+
+class MaKeys(TypedDict):
+    dk_refcnt: int
+    dk_kind: int
+    dk_usable: int
+    dk_nentries: int
+    dk_log2_size: int
+    dk_log2_index_bytes: int
+    dk_indices: list[int]
+    entries: list[Entry | None]
+
+
+class Extra(TypedDict):
+    entry_type: str
+    entry_size: int
+    idx_elem_size: int
+
+
+class DictStructure(TypedDict):
+    ma_keys: MaKeys
+    extra: Extra
+    ma_values: list[Any] | None
+    repr: str
 
 
 # ---------------------------------------------------------------------------
 # Вспомогательные функции
 # ---------------------------------------------------------------------------
+
+def _cut_long_str(text: str, max_length: int = MAX_TABLE_VALUE_LEN) -> str:
+    if len(text) > max_length:
+        return text[: max_length - 3] + "..."
+    return text
 
 
 def _format_value(value: Any) -> str:
@@ -15,150 +72,146 @@ def _format_value(value: Any) -> str:
     if value is None:
         return "NULL"
     if isinstance(value, str):
-        return f"'{value}'"
-    return f"'{repr(value)}'"
+        return value
+    return repr(value)
 
 
-def _format_hash(hash_value: Any) -> str:
-    """Хэш может быть int (из PyLong) или str (если уже hex)."""
-    if isinstance(hash_value, int):
-        # Приводим к беззнаковому виду, как в C-версии (size_t)
-        return f"0x{hash_value & 0xFFFFFFFFFFFFFFFF:x}"
-    return str(hash_value)
+def _format_hash(hash_value: int) -> str:
+    """Привести хэш к беззнаковому hex-виду, как в C-версии (size_t)."""
+    return f"0x{hash_value & 0xFFFFFFFFFFFFFFFF:x}"
 
 
-def _kind_to_str(kind: Any) -> str:
-    """dk_kind может быть строкой (GENERAL/UNICODE/SPLIT) или числом."""
-    if isinstance(kind, str):
-        return kind
-    return {0: "GENERAL", 1: "UNICODE", 2: "SPLIT"}.get(kind, "UNKNOWN")
+def _kind_to_str(kind: int) -> str:
+    return KIND_NAMES.get(kind, "UNKNOWN")
 
 
 # ---------------------------------------------------------------------------
 # Секции вывода
 # ---------------------------------------------------------------------------
 
-
-def _show_dict_keys_headers(keys: dict) -> str:
+def _show_dict_keys_headers(keys: MaKeys) -> str:
     kind = _kind_to_str(keys["dk_kind"])
-    lines = [
-        f"ma_keys -> dk_kind = {kind}",
-        f"ma_keys -> dk_usable = {keys['dk_usable']}",
-        f"ma_keys -> dk_nentries = {keys['dk_nentries']}",
-    ]
-    return "\n".join(lines) + "\n"
-
-
-def _show_dict_key_indices(keys: dict) -> str:
-    dk_log2_size = keys["dk_log2_size"]
-    dk_size = 1 << dk_log2_size
-    indices = keys["dk_indices"]
-
-    # На случай, если C-функция вернула меньше элементов — добиваем EMPTY
-    if len(indices) < dk_size:
-        indices = list(indices) + [-1] * (dk_size - len(indices))
-
-    parts: list[str] = ["ma_keys -> dk_indices:"]
-    for i in range(dk_size):
-        if i % 8 == 0:
-            parts.append("\n")
-        val = indices[i]
-        if val == -1:
-            parts.append(f"{i:4d}: EMPTY ")
-        elif val == -2:
-            parts.append(f"{i:4d}: DUMMY ")
-        else:
-            parts.append(f"{i:4d}: {val:<5d} ")
-    parts.append("\n\n")
-    return "".join(parts)
-
-
-def _show_dict_entry(entry_type: str, entry: dict[str, Any]) -> str:
-    dict_items_str = ", ".join([f"{key}={value}" for key, value in entry.items()])
-    result = f"{entry_type}({dict_items_str})"
-    if entry_type == "PyDictUnicodeEntry":
-        result += f" \t# hash_from_key='{_format_hash(hash(entry['key_from_ptr']))}'"
-    return result
-
-
-def _show_dict_key_entries(keys: dict, extra: dict) -> str:
-    entries = keys["entries"]
-    header = "ma_keys -> entries:\n"
-    entry_type = extra["entry_type"]
-
-    lines: list[str] = []
-    for i, entry in enumerate(entries):
-        if entry is None:
-            lines.append(f"{i:4d}: NULL")
-            continue
-        lines.append(f"{i:4d}: {_show_dict_entry(entry_type, entry)}")
-
-    return header + "\n".join(lines) + "\n\n"
-
-
-def _show_dict_values(ma_values: list | None, nentries: int) -> str:
-    if ma_values is None:
-        return "ma_values: NULL\n\n"
-    parts: list[str] = ["ma_values: "]
-    for i in range(nentries):
-        parts.append("\n")
-        if i >= len(ma_values) or ma_values[i] is None:
-            parts.append(f"{i:4d}: NULL")
-            continue
-        parts.append(f"{i:4d}: '{_format_value(ma_values[i])}'")
-    parts.append("\n\n")
-    return "".join(parts)
-
-
-def _show_dict_keys_stat(keys: dict) -> str:
-    dk_size = 1 << keys["dk_log2_size"]
-    idx_elem_size = _index_elem_size(keys)
-    indices_size = 1 << keys["dk_log2_index_bytes"]
-    nentries = keys["dk_nentries"]
-
-    if _kind_to_str(keys["dk_kind"]) == "GENERAL":
-        size_per_entry = 24  # sizeof(PyDictKeyEntry) на 64-битной платформе
-    else:
-        size_per_entry = 16  # sizeof(PyDictUnicodeEntry) на 64-битной платформе
-    entries_size = nentries * size_per_entry
-    total_size = indices_size + entries_size
-
     return (
-        f"indices_size = {dk_size} * {idx_elem_size} = {indices_size}\n"
-        f"entries_size = {nentries} * {size_per_entry} = {entries_size}\n"
-        f"total_size = {total_size}\n"
+        f"dk_kind_str = {kind}\n"
+        f"ma_keys -> dk_kind = {keys['dk_kind']}\n"
+        f"ma_keys -> dk_usable = {keys['dk_usable']}\n"
+        f"ma_keys -> dk_nentries = {keys['dk_nentries']}\n"
+        f"ma_keys -> dk_refcnt = {keys['dk_refcnt']}\n"
+        "\n"
     )
 
 
-def _index_elem_size(keys: dict) -> int:
+def _format_index_slot(val: int) -> str:
+    if val == DKIX_EMPTY:
+        return f"EMPTY"
+    if val == DKIX_DUMMY:
+        return f"DUMMY"
+    return f"{val:<5d}"
+
+
+def _show_dict_key_indices(keys: MaKeys) -> str:
     dk_size = 1 << keys["dk_log2_size"]
-    if dk_size <= 0xFF:
-        return 1
-    if dk_size <= 0xFFFF:
-        return 2
-    if dk_size <= 0xFFFFFFFF:
-        return 4
-    return 8
+    indices = keys["dk_indices"]
+
+    table = PrettyTable()
+    column_height = max(MIN_COLUMN_HEIGHT, dk_size >> 2)
+    columns_cnt = dk_size // column_height
+
+    for col_idx in range(columns_cnt):
+        idx_from = column_height * col_idx
+        idx_to = column_height * (col_idx + 1)
+        table.add_column("i", range(idx_from, idx_to))
+        table.add_column("slot", list(map(_format_index_slot, indices[idx_from:idx_to])))
+
+    return f"ma_keys -> dk_indices:\n{table}\n\n"
+
+
+def _entries_field_names(entry_type: str) -> list[str]:
+    if entry_type == ENTRY_TYPE_KEY:
+        return ["idx", "hash", "key_from_ptr", "value_from_ptr"]
+    if entry_type == ENTRY_TYPE_UNICODE:
+        return ["idx", "key_from_ptr", "value_from_ptr", "comment"]
+    raise RuntimeError(f"Unknown entry_type: {entry_type}")
+
+
+def _entry_row(i: int, entry: Entry, entry_type: str) -> list[Any]:
+    key = _cut_long_str(_format_value(entry.get("key_from_ptr")))
+    value = _cut_long_str(_format_value(entry.get("value_from_ptr")))
+
+    if entry_type == ENTRY_TYPE_KEY:
+        return [i, _format_hash(entry["hash"]), key, value]
+
+    if entry_type == ENTRY_TYPE_UNICODE:
+        key_obj = entry.get("key_from_ptr")
+        comment = f"hash_from_key='{_format_hash(hash(key_obj))}'"
+        return [i, key, value, comment]
+
+    raise RuntimeError(f"Unknown entry_type: {entry_type}")
+
+
+def _show_dict_key_entries(keys: MaKeys, extra: Extra) -> str:
+    entry_type = extra["entry_type"]
+    table = PrettyTable(field_names=_entries_field_names(entry_type))
+
+    empty_row_len = len(table.field_names) - 1
+    for i, entry in enumerate(keys["entries"]):
+        if entry is None:
+            table.add_row([i] + [""] * empty_row_len)
+        else:
+            table.add_row(_entry_row(i, entry, entry_type))
+
+    return f"ma_keys -> entries:\n{table}\n\n"
+
+
+def _show_dict_values(ma_values: list[Any] | None, nentries: int) -> str:
+    if ma_values is None:
+        return "ma_values: NULL\n\n"
+
+    table = PrettyTable(field_names=("i", "value_from_ptr"))
+    for i in range(nentries):
+        table.add_row((i, _format_value(ma_values[i])))
+    return f"ma_values:\n{table}\n\n"
+
+
+def _show_dict_stat(keys: MaKeys, extra: Extra) -> str:
+    idx_elem_size = extra["idx_elem_size"]
+    entry_type = extra["entry_type"]
+    entry_size = extra["entry_size"]
+
+    dk_size = 1 << keys["dk_log2_size"]
+    indices_size = 1 << keys["dk_log2_index_bytes"]
+    nentries = keys["dk_nentries"]
+    entries_size = nentries * entry_size
+    total_size = indices_size + entries_size
+
+    return (
+        f"indices_elem_size = {idx_elem_size}\n"
+        f"indices_count = {dk_size}\n"
+        f"indices_size = {indices_size}\n"
+        f"entry_type = {entry_type}\n"
+        f"entry_size = {entry_size}\n"
+        f"entries_count = {nentries}\n"
+        f"entries_size = {entries_size}\n"
+        f"total_size = {total_size}\n"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Публичная точка входа
 # ---------------------------------------------------------------------------
 
-
-def inspect_dict(structure: dict) -> str:
+def inspect_dict(structure: DictStructure) -> str:
     """Сформировать человекочитаемый отчёт из словаря get_dict_structure()."""
     keys = structure["ma_keys"]
     extra = structure["extra"]
     ma_values = structure.get("ma_values")
 
-    parts: list[str] = []
-    parts.append(
-        f"cpython_internals_inspector(dict): {structure.get('repr', '<dict>')}\n"
-    )
-    parts.append(_show_dict_keys_headers(keys))
-    parts.append(_show_dict_key_indices(keys))
-    parts.append(_show_dict_key_entries(keys, extra))
-    parts.append(_show_dict_values(ma_values, keys["dk_nentries"]))
-    parts.append(_show_dict_keys_stat(keys))
+    parts = [
+        f"cpython_internals_inspector(dict): {structure.get('repr', '<dict>')}\n",
+        _show_dict_keys_headers(keys),
+        _show_dict_key_indices(keys),
+        _show_dict_key_entries(keys, extra),
+        _show_dict_values(ma_values, keys["dk_nentries"]),
+        _show_dict_stat(keys, extra),
+    ]
     return "".join(parts)

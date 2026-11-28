@@ -28,29 +28,55 @@ matching version (for `Include/internal`).
 ```python
 import cpython_internals_inspector as cii
 
-d = {'timmy': 'red', 'barry': 'green'}
+d = {'timmy': 'red', 'test': 'orange', 'barry': 'green', 'guido': 'blue'}
+del d['test']
 print(cii.inspect(d))
 ```
 
 Output:
 
 ```
-cpython_internals_inspector(dict): {'timmy': 'red', 'barry': 'green'}
-ma_keys -> dk_kind = UNICODE
-ma_keys -> dk_usable = 3
-ma_keys -> dk_nentries = 2
+cpython_internals_inspector(dict): {'timmy': 'red', 'barry': 'green', 'guido': 'blue'}
+dk_kind_str = UNICODE
+ma_keys -> dk_kind = 1
+ma_keys -> dk_usable = 1
+ma_keys -> dk_nentries = 4
+ma_keys -> dk_refcnt = 1
+
 ma_keys -> dk_indices:
-   0: EMPTY    1: 1        2: EMPTY    3: EMPTY    4: EMPTY    5: EMPTY    6: EMPTY    7: 0
++---+-------+
+| i |  slot |
++---+-------+
+| 0 | EMPTY |
+| 1 | 0     |
+| 2 | EMPTY |
+| 3 | EMPTY |
+| 4 | DUMMY |
+| 5 | 3     |
+| 6 | EMPTY |
+| 7 | 2     |
++---+-------+
 
 ma_keys -> entries:
-   0: PyDictUnicodeEntry(key_from_ptr=timmy, value_from_ptr=red) 	# hash_from_key='0xf2210736e2219fff'
-   1: PyDictUnicodeEntry(key_from_ptr=barry, value_from_ptr=green) 	# hash_from_key='0x9780a006073911a9'
++-----+--------------+----------------+------------------------------------+
+| idx | key_from_ptr | value_from_ptr |              comment               |
++-----+--------------+----------------+------------------------------------+
+|  0  |    timmy     |      red       | hash_from_key='0x6020858191cff581' |
+|  1  |              |                |                                    |
+|  2  |    barry     |     green      | hash_from_key='0xdb0bc72ea097ea7f' |
+|  3  |    guido     |      blue      | hash_from_key='0xe4e82bb2c0a15025' |
++-----+--------------+----------------+------------------------------------+
 
 ma_values: NULL
 
-indices_size = 8 * 1 = 8
-entries_size = 2 * 16 = 32
-total_size = 40
+indices_elem_size = 1
+indices_count = 8
+indices_size = 8
+entry_type = PyDictUnicodeEntry
+entry_size = 16
+entries_count = 4
+entries_size = 64
+total_size = 72
 ```
 
 ## API
